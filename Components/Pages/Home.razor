@@ -1,0 +1,61 @@
+@page "/"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@inject IHttpClientFactory HttpClientFactory
+
+<h1>Primeiro usuário - JSONPlaceholder</h1>
+<p>Dados obtidos do endpoint <code>/users</code>.</p>
+<button @onclick="CarregarUsuario" disabled="@carregando">Consultar API</button>
+
+@if (carregando)
+{
+    <p>Consultando...</p>
+}
+else if (!string.IsNullOrWhiteSpace(erro))
+{
+    <p role="alert" style="color:darkred">@erro</p>
+}
+else if (usuario is not null)
+{
+    <p><strong>Nome:</strong> @usuario.Name</p>
+    <p><strong>Cidade:</strong> @usuario.Address?.City</p>
+    <p><strong>Empresa:</strong> @usuario.Company?.Name</p>
+}
+
+@code {
+    private Usuario? usuario;
+    private bool carregando;
+    private string? erro;
+
+    protected override async Task OnInitializedAsync() => await CarregarUsuario();
+
+    private async Task CarregarUsuario()
+    {
+        carregando = true;
+        erro = null;
+        try
+        {
+            using var client = HttpClientFactory.CreateClient("JsonPlaceholder");
+            var usuarios = await client.GetFromJsonAsync<List<Usuario>>("users");
+            usuario = usuarios?.FirstOrDefault();
+            if (usuario is null) erro = "A API não retornou usuários.";
+            else Console.WriteLine($"Nome: {usuario.Name} | Cidade: {usuario.Address?.City} | Empresa: {usuario.Company?.Name}");
+        }
+        catch (Exception ex)
+        {
+            usuario = null;
+            erro = "Não foi possível consultar a API. Tente novamente.";
+            Console.Error.WriteLine(ex.Message);
+        }
+        finally { carregando = false; }
+    }
+
+    public class Usuario
+    {
+        public string? Name { get; set; }
+        public Endereco? Address { get; set; }
+        public Empresa? Company { get; set; }
+    }
+    public class Endereco { public string? City { get; set; } }
+    public class Empresa { public string? Name { get; set; } }
+}
